@@ -6,12 +6,100 @@
   <title>10Y 美債 · 10Y SOFR Swap · Fed Funds</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
   <script src="data.js"></script>
+  <style>
+    :root { --bg:#0b0e14; --panel:#121722; --panel-2:#181e2b; --line:#2a3346; --text:#e8edf7; --muted:#8b95a8; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; background:var(--bg); color:var(--text); font-family:"Noto Sans TC",sans-serif; }
+    .topbar { border-bottom:1px solid var(--line); background:#0a0d13; }
+    .topbar-in { max-width:1280px; margin:0 auto; padding:10px 22px; display:flex; justify-content:space-between; }
+    .brand { font-size:13px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+    .wrap { max-width:1280px; margin:0 auto; padding:22px; }
+    h1 { font-size:22px; margin:0; }
+    .sub { color:var(--muted); font-size:13px; margin-top:4px; }
+    .grid { display:grid; grid-template-columns:1fr 280px; gap:14px; }
+    @media (max-width:980px){ .grid{grid-template-columns:1fr;} }
+    .card,.kv { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; }
+    .chart-box { height:560px; }
+    .side { display:flex; flex-direction:column; gap:10px; }
+    .val { font-family:"JetBrains Mono",monospace; font-size:28px; font-weight:600; }
+    .meta,.k { font-size:12px; color:var(--muted); }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .stat { background:#0b0e14; border-radius:8px; padding:8px; }
+    footer { margin-top:14px; color:var(--muted); font-size:12px; line-height:1.65; }
+    input,select { background:#0b0e14; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 8px; }
+    input[type=range]{ width:100%; }
+  </style>
 </head>
 <body>
-<p>placeholder</p>
+  <div class="topbar"><div class="topbar-in"><div class="brand">Rates Board</div></div></div>
+  <div class="wrap">
+    <header>
+      <h1>10Y 美債 + 10Y SOFR Swap + Fed Funds</h1>
+      <div class="sub">2021-01-01 至今 · 無利差面板 · 資料截至 <span id="asof"></span> · 下次 FOMC <span id="nextFomc"></span></div>
+    </header>
+    <div class="grid">
+      <div class="card"><div class="chart-box"><canvas id="chart"></canvas></div></div>
+      <aside class="side">
+        <div class="kv" id="boxUst"></div>
+        <div class="kv" id="boxSwap"></div>
+        <div class="kv" id="boxDff"></div>
+        <div class="kv">
+          <div class="k">橫線（過去 5 年交易日）</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <select id="seriesSel"><option value="ust">10Y 美債</option><option value="swap">10Y SOFR Swap</option><option value="dff">Fed 有效利率</option></select>
+            <input id="hlineVal" type="number" step="0.01" min="0" max="8" />
+          </div>
+          <input id="hlineRange" type="range" min="0" max="6" step="0.01" />
+          <div class="stat-grid">
+            <div class="stat"><div class="k">線之上</div><div class="val" id="aboveN" style="font-size:16px">—</div></div>
+            <div class="stat"><div class="k">線之下</div><div class="val" id="belowN" style="font-size:16px">—</div></div>
+            <div class="stat"><div class="k">之上佔比</div><div class="val" id="aboveP" style="font-size:16px">—</div></div>
+            <div class="stat"><div class="k">之下佔比</div><div class="val" id="belowP" style="font-size:16px">—</div></div>
+          </div>
+          <div class="meta" id="hlineMeta" style="margin-top:8px"></div>
+        </div>
+      </aside>
+    </div>
+    <footer>只係市場數據整理，唔構成投資建議。SOFR Swap 歷史線由公開錨點 + 10Y 美債路徑補出。</footer>
+  </div>
+  <script>
+    const D = window.RATES_DATA;
+    if (!D) { document.body.insertAdjacentHTML('afterbegin','<p style="color:#f071a8;padding:20px">缺 data.js</p>'); throw new Error('no data'); }
+    document.getElementById('asof').textContent = D.asOf;
+    document.getElementById('nextFomc').textContent = D.fomc.next;
+    function box(id,name,item){ document.getElementById(id).innerHTML = `<div class="k">${name}</div><div class="val">${Number(item.value).toFixed(3)}%</div><div class="meta">${item.date} 較 ${item.prevDate} ${item.chgBp>=0?'+':''}${item.chgBp.toFixed(1)} bp</div><div class="meta">${item.source}</div>`; }
+    box('boxUst','10Y 美債',D.latest.ust);
+    box('boxSwap','10Y SOFR Swap',D.latest.swap);
+    box('boxDff','Fed 有效利率',D.latest.dff);
+    const labels=D.chart.date, ust=D.chart.ust, swap=D.chart.swap, dff=D.chart.dff, tarL=D.chart.tarL, tarU=D.chart.tarU;
+    let hline=Number(D.latest.ust.value);
+    const seriesSel=document.getElementById('seriesSel');
+    const hlineVal=document.getElementById('hlineVal');
+    const hlineRange=document.getElementById('hlineRange');
+    hlineVal.value=hline.toFixed(2); hlineRange.value=hline.toFixed(2);
+    const chart=new Chart(document.getElementById('chart'),{type:'line',data:{labels,datasets:[
+      {label:'Fed 目標區間',data:tarU,borderColor:'rgba(167,139,250,0)',backgroundColor:'rgba(167,139,250,.28)',fill:'+1',pointRadius:0,borderWidth:0},
+      {label:'Fed 目標下沿',data:tarL,borderColor:'rgba(167,139,250,.7)',pointRadius:0,borderWidth:1,fill:false},
+      {label:'10Y 美債',data:ust,borderColor:'#4ea2ff',pointRadius:0,borderWidth:2,spanGaps:false},
+      {label:'10Y SOFR Swap',data:swap,borderColor:'#f0a14a',pointRadius:0,borderWidth:2,borderDash:[6,3],spanGaps:false},
+      {label:'Fed 有效利率',data:dff,borderColor:'#f071a8',pointRadius:0,borderWidth:2,spanGaps:false}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#c9d4e8',filter:i=>i.text!=='Fed 目標下沿'}},
+        annotation:{annotations:{hline:{type:'line',yMin:hline,yMax:hline,borderColor:'#f5e6c8',borderDash:[4,3]}}}},
+      scales:{x:{ticks:{color:'#8b95a8',maxTicksLimit:10,callback(v){const s=this.getLabelForValue(v);return s?s.slice(0,7):'';}},grid:{color:'rgba(42,51,70,.45)'}},
+              y:{ticks:{color:'#8b95a8',callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(42,51,70,.45)'}}}}});
+    function stats(key,level){const arr=D.fiveYear[key]||[];let a=0,b=0;for(const v of arr){if(v>level)a++;else if(v<level)b++;}const n=arr.length||1;return {n,a,b,ap:a/n*100,bp:b/n*100};}
+    function render(){hline=Number(hlineVal.value);chart.options.plugins.annotation.annotations.hline.yMin=hline;chart.options.plugins.annotation.annotations.hline.yMax=hline;chart.update('none');
+      const s=stats(seriesSel.value,hline); document.getElementById('aboveN').textContent=s.a+' 日'; document.getElementById('belowN').textContent=s.b+' 日';
+      document.getElementById('aboveP').textContent=s.ap.toFixed(1)+'%'; document.getElementById('belowP').textContent=s.bp.toFixed(1)+'%';
+      document.getElementById('hlineMeta').textContent='過去 5 年共 '+s.n+' 個交易日。';}
+    function setL(v){const x=Math.max(0,Math.min(8,Number(v)));hlineVal.value=x.toFixed(2);hlineRange.value=x.toFixed(2);render();}
+    hlineVal.oninput=e=>setL(e.target.value); hlineRange.oninput=e=>setL(e.target.value);
+    seriesSel.onchange=()=>setL(D.latest[seriesSel.value].value); render();
+  </script>
 </body>
 </html>
