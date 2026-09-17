@@ -1,3 +1,5 @@
 # 10Y 美債 + 10Y SOFR Swap + Fed Funds
 
-網站：https://ko7410321.github.io/ust-sofr-fed/
+用單一 `index.html`（數據已內嵌）。雙擊即可。
+
+GitHub Pages：請把完整單檔 `index.html` 覆蓋上傳。
